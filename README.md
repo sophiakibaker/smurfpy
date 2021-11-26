@@ -11,6 +11,8 @@ README last updated by: S. Baker, 26/11/21
 --------------------------- OUTLINE -----------------------------------
 -----------------------------------------------------------------------
 
+**AUTOMATED RUNNING OF:**
+
 1. Processing_Scripts
     --> Data download, pre-processing, RF calculation, post-processing (inc. quality control)
 2. Migration_Scripts

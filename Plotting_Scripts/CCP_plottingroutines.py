@@ -7,19 +7,26 @@ import scipy
 import scipy.ndimage
 from mpl_toolkits.basemap import Basemap
 import os
+import sys
 import os.path
 import math
 import msgpack
+# from msgpack import unpack
 import msgpack_numpy as m
 m.patch()
 from matplotlib.colors import LogNorm
 import matplotlib.cm as cm
 import numpy.ma as ma
 import matplotlib.pyplot as plt
+from osgeo import gdal
+import elevation 
 
 # definition of the half width of the fresnel zone
 knotspacing = lambda r, vs: 1./2.*np.sqrt(((10./3.*vs)+r)**2.-r**2.) # in m for a 10s wave
 
+Data = sys.argv[1]
+
+Results = Data+'_Results'
 
 def haversine(lat1, long1, lats2, longs2):
     """
@@ -73,13 +80,16 @@ class ccp_volume(object):
 #
 # Load latest volume to dictionary
 #
-    def load_latest(self, name='Megavolume', filter='rff2', conversion='EU60', factor=1.):
-        if os.path.isfile('../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/Stack_master.PICKLE'):
-            volumefile='../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/Stack_master.PICKLE'
+    def load_latest(self, data, bandpassfilter, name='Megavolume', filter='rff2', conversion='EU60', factor=1.):
+        print('volumefile='+data+'/CCP_volumes/'+name+'_'+bandpassfilter+filter+'_'+conversion+'_'+str(factor)+'/Stack_master.PICKLE')
+        if os.path.isfile(Results+'/CCP_volumes/'+name+'_'+bandpassfilter+filter+'_'+conversion+'_'+str(factor)+'/Stack_0.PICKLE'): #temporary edit as Data+path is not working! original has master, not 0
+            print("if statement satisfied")
+            volumefile=data+'/CCP_volumes/'+name+'_'+bandpassfilter+filter+'_'+conversion+'_'+str(factor)+'/Stack_0.PICKLE'
             print('loading', name, volumefile)
         else:
-            line = open('../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat', 'r').readlines()[-1]
-    #        line = open('../AFR_CCP_volumes_SAFE/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat', 'r').readlines()[-1]    # A temporary solution....
+            print('running else statement')
+            line = open(Results+'/CCP_volumes/'+name+'_'+ bandpassfilter+filter+'_'+conversion+'_'+ str(factor)+'/filenames.dat', 'r').readlines()[-1] #temporary edit as Data+path is not working!
+    #        line = open('AFR_CCP_volumes_SAFE/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat', 'r').readlines()[-1]    # A temporary solution....
             runnum = int(float(line.split()[0]))
             volumefile = line.split()[1]
             print('loading', name, runnum, volumefile)
@@ -96,9 +106,9 @@ class ccp_volume(object):
 # Plot data coverage map at predefined depth
 #
 
-    def plot_datacoverage(self,depth,name='Megavolume',conversion='prem',filter='jgf1', factor=2.):
+    def plot_datacoverage(self,Data,depth,name='Megavolume',conversion='prem',filter='jgf1', factor=2.):
 
-        coverage_file = open('../CCP_volumes/' + name + '_' + str(depth) + '_weights_' + conversion + '_' + str(filter) + '_' +str(int(factor))+'.txt', 'w')
+        coverage_file = open(Results+'/CCP_volumes/' + name + '_' + str(depth) + '_weights_' + conversion + '_' + str(filter) + '_' +str(int(factor))+'.txt', 'w')
         fig = plt.figure(figsize=(6,6))
         d = np.argmin(np.abs(self.VOL['grid_depth']-depth))
         slice = self.VOL['volumeweight'][:,:, d].copy()
@@ -107,15 +117,15 @@ class ccp_volume(object):
         xx, yy = np.meshgrid(self.VOL['grid_lon'], self.VOL['grid_lat'])
 
         m = Basemap(projection='merc', llcrnrlat=np.min(self.VOL['grid_lat']), urcrnrlat=np.max(self.VOL['grid_lat']), llcrnrlon=np.min(self.VOL['grid_lon']), urcrnrlon=np.max(self.VOL['grid_lon']), lat_ts=0, resolution='i')
-        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
-        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
+        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
         m.drawcountries()
         m.drawcoastlines(zorder=2, color='k', linewidth=1)
 
         m.drawmapboundary(fill_color=[1.0, 1.0, 1.0])
         x, y = m(xx, yy)
 
-        contours = [1., 1.e1, 1.e2, 1.e3, 1.e4]#[1.e0,1.e1,1.e2,1.e3,1.e4]
+        contours = [1., .5e1, 1.e1, .5e2, 1.e2, .5e3, 1.e3, .5e4, 1.e4]#[1.e0,1.e1,1.e2,1.e3,1.e4]
         im =plt.contourf(x, y, slice.T, contours, norm=LogNorm(),zorder=1)
 #        To write out the volumeweights
         for i in range(len(self.VOL['grid_lon'])):
@@ -130,19 +140,113 @@ class ccp_volume(object):
         d_lon=np.min(self.VOL['grid_lon'])+0.4
         d_lat=np.min(self.VOL['grid_lat'])+0.4
         x, y = m(d_lon, d_lat)
-        plt.text(x, y,dep_str,fontsize=10,ha='left',va='bottom',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
+        plt.text(x, y,dep_str,fontsize=18,ha='left',va='bottom',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
 
         fig.subplots_adjust(bottom=.2)
         cbar_ax = fig.add_axes([0.2, 0.1, 0.6, 0.05])
         cb = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-        cb.set_label('Sum of weights at ' + str(depth) + ' km', fontsize=12)
-        cb.ax.tick_params(labelsize=10)
+        cb.set_label('Sum of weights at ' + str(depth) + ' km', fontsize=18)
+        cb.ax.tick_params(labelsize=16)
 
 
 
 #
 # Plot topography maps
 #
+
+    def topo3d(self,params,name='Megavolume',conversion='prem',filter='jgf1',factor=2.,mincoverage=10., amplitude = True, blobs=True):
+        # Plots topography of maximum between mindepth and maxdepth, masking if sum of weights is beneath mincoverage.
+        # If amplitude =True, it will plot the amplitude and not the depth
+        # window buffer at end of depth array to not pick.
+        wb=5
+
+        phases = [410,660]
+
+        plt.figure(figsize=(10, 8))
+        ax = plt.axes(projection='3d')
+
+        for phase in phases:
+
+            plot_depth = phase
+            
+            mindepth = plot_depth-40
+            maxdepth = plot_depth+80
+
+            depths = self.VOL['grid_depth']
+            #print('depths are ', depths)
+            val_list = [x for x in range(len(depths)) if depths[x] > mindepth and depths[x] < maxdepth]
+
+
+            # thickness = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+            dmap = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+            # coverage = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+            dsign = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+
+            for i in range(len(self.VOL['grid_lon'])):
+                for j in range(len(self.VOL['grid_lat'])):
+                    RF = self.VOL['volume'][i, j,:]/self.VOL['volumeweight'][i, j,:]
+                    # plt.plot(RF)
+                    # This appears to be doing 1.96x std so its ~2std.
+                    std = 1.96*np.sqrt(self.VOL['volumesigma'][i, j,:]/(self.VOL['volumeweight'][i, j,:]*self.VOL['volumeweight'][i, j,:]))
+                    maxmap = np.argmax(RF[val_list])
+
+                    if depths[val_list[maxmap]] > depths[val_list[wb-1]] and depths[val_list[maxmap]] < depths[val_list[-wb]]:
+                        if self.VOL['volumeweight'][i, j, val_list[maxmap]] >= mincoverage:
+                            if abs(RF[val_list[maxmap]])>std[val_list[maxmap]]:
+                                dmap[i, j] = depths[val_list[maxmap]]
+
+
+            dmapall = np.ravel(dmap)
+            if amplitude == False:
+                l = [l for l in range(len(dmapall)) if dmapall[l] > mindepth+1. and dmapall[l] < maxdepth - 1.]
+
+                if np.median((dmapall[l]))*100 == np.NaN:
+                    print("NaN median")
+                else:
+                    median=         round(np.median((dmapall[l]))*100)/100
+                    variance=       round(np.var((dmapall[l]))*100)/100
+
+                    med_str='med = ' + str(median)
+                    var_str='var = ' + str(variance)
+
+                    print(med_str)
+                    print(var_str)
+
+            xx, yy = np.meshgrid(self.VOL['grid_lon'], self.VOL['grid_lat'])
+
+            # %matplotlib inline
+            for i in range(len(xx)):
+                for j in range(len(yy)):
+                    if dmap.T[i][j] == np.NaN or dmap.T[i][j] < mindepth or dmap.T[i][j] > maxdepth:
+                        dmap.T[i][j] = median
+
+            ax.plot_surface(xx, yy, dmap.T, rstride=1, cstride=1, cmap='inferno')
+            ax.set_xlabel('Longitude / deg')
+            ax.set_ylabel('Latitude / deg')
+            ax.set_zlabel('Depth / km')
+
+            # LAND
+            # filename = "sabah_srtm.grd"
+            # gdal_data = gdal.Open(filename)
+            # gdal_band = gdal_data.GetRasterBand(1)
+            # nodataval = gdal_band.GetNoDataValue()
+
+            # # convert to a numpy array
+            # data_array = gdal_data.ReadAsArray().astype(np.float)
+            # data_array
+
+            # # replace missing values if necessary
+            # if np.any(data_array == nodataval):
+            #     data_array[data_array == nodataval] = 0
+
+            # plt.plot_surface(data_array, cmap = "turku", levels = list(range(0, 5000, 100)))
+
+        plt.show()
+
+
+
+
+
 
     def plot_topography(self,mindepth,maxdepth,name='Megavolume',conversion='prem',filter='jgf1',factor=2.,mincoverage=10., amplitude = True, blobs=True):
         # Plots topography of maximum between mindepth and maxdepth, masking if sum of weights is beneath mincoverage.
@@ -179,22 +283,25 @@ class ccp_volume(object):
         if amplitude == False:
             l = [l for l in range(len(dmapall)) if dmapall[l] > mindepth+1. and dmapall[l] < maxdepth - 1.]
 
-            median=         round(np.median((dmapall[l]))*100)/100
-            variance=       round(np.var((dmapall[l]))*100)/100
+            if np.median((dmapall[l]))*100 == np.NaN:
+                print("NaN median")
+            else:
+                median=         round(np.median((dmapall[l]))*100)/100
+                variance=       round(np.var((dmapall[l]))*100)/100
 
-            med_str='med = ' + str(median)
-            var_str='var = ' + str(variance)
+                med_str='med = ' + str(median)
+                var_str='var = ' + str(variance)
 
-            print(med_str)
-            print(var_str)
+                print(med_str)
+                print(var_str)
 
 
 
         # Prepare map
         m = Basemap(projection='merc', llcrnrlat=np.min(self.VOL['grid_lat']), urcrnrlat=np.max(self.VOL['grid_lat']), llcrnrlon=np.min(self.VOL['grid_lon']), urcrnrlon=np.max(self.VOL['grid_lon']), lat_ts=20, resolution='i')
 
-        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
-        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
+        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
         m.drawcountries()
         m.drawcoastlines(zorder=1, color='k', linewidth=1)
 
@@ -218,33 +325,33 @@ class ccp_volume(object):
 
         #cb.set_label('Maximum map between ' + str(mindepth)+' and ' + str(maxdepth)+' (km)', size=30)
         if mindepth<400:
-            cb.set_label('Depth of 410 (km)', size=12)
+            cb.set_label('Depth of 410 (km)', size=18)
         else:
-            cb.set_label('Depth of 660 (km)', size=12)
-        cb.ax.tick_params(labelsize=10)
+            cb.set_label('Depth of 660 (km)', size=18)
+        cb.ax.tick_params(labelsize=16)
         #cb.set_label('Amplitude')
 
         # Label region and conversion at top.
         r_lon=np.max(self.VOL['grid_lon'])-0.4
         r_lat=np.max(self.VOL['grid_lat'])-0.4
         x, y = m(r_lon, r_lat)
-        plt.text(x, y,'region',fontsize=10,ha='right',va='top',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
+        plt.text(x, y,'region',fontsize=18,ha='right',va='top',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
 
         c_lon=np.min(self.VOL['grid_lon'])+0.4
         c_lat=np.max(self.VOL['grid_lat'])-0.4
         x, y = m(c_lon, c_lat)
-        plt.text(x, y,conversion,fontsize=10,ha='left',va='top',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
+        plt.text(x, y,conversion,fontsize=18,ha='left',va='top',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
 
         # Label median and variance at bottom.
         med_lon=np.min(self.VOL['grid_lon'])+0.4
         med_lat=np.min(self.VOL['grid_lat'])+0.4
         x, y = m(med_lon, med_lat)
-        plt.text(x, y,med_str,fontsize=10,ha='left',va='bottom',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
+        plt.text(x, y,med_str,fontsize=18,ha='left',va='bottom',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
 
         var_lon=np.max(self.VOL['grid_lon'])-0.4
         var_lat=np.min(self.VOL['grid_lat'])+0.4
         x, y = m(var_lon, var_lat)
-        plt.text(x, y,var_str,fontsize=10,ha='right',va='bottom',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
+        plt.text(x, y,var_str,fontsize=18,ha='right',va='bottom',color='black', bbox=dict(facecolor='white', edgecolor='black', pad=3.0))
 
 
         # cb.set_ticks([380,400,420,440])
@@ -253,19 +360,40 @@ class ccp_volume(object):
 
         m.drawcoastlines(zorder=1, color='k', linewidth=1)
 
+
+        # %matplotlib inline
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+
+        # for i in range(len(xx)):
+        #     for j in range(len(yy)):
+        #         if dmap.T[i][j] > 100:
+        #             dmap.T[i][j] = np.NaN
+
+        ax.scatter3D(xx, yy, -dmap.T, cmap='inferno')
+
+        # print(xx)
+        # print(yy) 
+        # print(dmap.T)
+        # m = Basemap(projection='merc', llcrnrlat=np.min(self.VOL['grid_lat']), urcrnrlat=np.max(self.VOL['grid_lat']), llcrnrlon=np.min(self.VOL['grid_lon']), urcrnrlon=np.max(self.VOL['grid_lon']), lat_ts=20, resolution='i')
+
+        # m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        # m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        # m.drawcountries()
+        # m.drawcoastlines(zorder=1, color='k', linewidth=1)
+        
+
+
+
+
 #
 # Plot map of MTZ width
 #
 
-
-
-
-
-    def plot_mtzwidth(self,name='Megavolume',conversion='prem',filter='jgf1',factor=2., mincoverage=10.):
+    def plot_mtzwidth(self,name,conversion,filter,factor, mincoverage):
         # Plots topography of maximum between mindepth and maxdepth, masking if sum of weights is beneath mincoverage.
         # window buffer at end of depth array to not pick.
         wb=5
-
         plt.figure(figsize=(10, 8))
         depths = self.VOL['grid_depth']
         print(depths)
@@ -307,8 +435,8 @@ class ccp_volume(object):
         # Prepare map
         m = Basemap(projection='merc', llcrnrlat=np.min(self.VOL['grid_lat']), urcrnrlat=np.max(self.VOL['grid_lat']), llcrnrlon=np.min(self.VOL['grid_lon']), urcrnrlon=np.max(self.VOL['grid_lon']), lat_ts=20, resolution='i')
 
-        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
-        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
+        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
         m.drawcountries()
         m.drawcoastlines(zorder=1, color='k', linewidth=1)
 
@@ -322,9 +450,9 @@ class ccp_volume(object):
         cs.cmap.set_under([0.8, 0.8, 0.8])
         cs.cmap.set_over([0.8, 0.8, 0.8])
         cb = plt.colorbar()
-        cb.set_label('Transition zone thickness (km)', size=12)
+        cb.set_label('Transition zone thickness (km)', size=18)
         cb.set_ticks([220,235,250,265,280])
-        cb.ax.tick_params(labelsize=10)
+        cb.ax.tick_params(labelsize=16)
         cb.solids.set_rasterized(True)
         xt, yt = m(-13.2, 70.6)
 
@@ -334,10 +462,10 @@ class ccp_volume(object):
 
 
 
-    def plot_mtzwidth_write(self,name='Megavolume',conversion='prem',filter='jgf1',factor=2., mincoverage=10.):
+    def plot_mtzwidth_write(self,noise,name='Megavolume',conversion='prem',filter='jgf1',factor=2., mincoverage=10.):
 
         #This routine is also used to make a txt file with the significant depths of the 410 and the 660
-        depth410660_2SE = open('../CCP_volumes/' + name + '_' + conversion+ '_'+ str(filter)+'_'+str(int(factor))+ '_MTZ_2SE_depths.txt', 'w')
+        depth410660_2SE = open(Results+'/CCP_volumes/' + name + '_' + conversion+ '_'+ str(noise) + str(filter)+'_'+str(int(factor))+ '_MTZ_2SE_depths.txt', 'w')
 
         wb=5
 
@@ -457,6 +585,83 @@ class ccp_volume(object):
         depth410660_2SE.close()
 
 
+    def mtzwidth3d(self,params,name='Megavolume',conversion='prem',filter='jgf1',factor=2.,mincoverage=10., amplitude = True, blobs=True):
+            # Plots topography of maximum between mindepth and maxdepth, masking if sum of weights is beneath mincoverage.
+            # If amplitude =True, it will plot the amplitude and not the depth
+            # window buffer at end of depth array to not pick.
+            wb=5
+            plt.figure(figsize=(10, 8))
+            ax = plt.axes(projection='3d')
+
+            depths = self.VOL['grid_depth']
+            print(depths)
+            l410 = [x for x in range(len(depths)) if depths[x] > 380 and depths[x] < 430]
+            l660 = [x for x in range(len(depths)) if depths[x] > 630 and depths[x] < 700]
+
+            # thickness = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+            dmap = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+            # coverage = np.empty((len(self.VOL['grid_lon']), len(self.VOL['grid_lat'])))
+
+            for i in range(len(self.VOL['grid_lon'])):
+                for j in range(len(self.VOL['grid_lat'])):
+
+                    RF = self.VOL['volume'][i, j,:]/self.VOL['volumeweight'][i, j,:]
+                    # plt.plot(RF)
+                    # Again originally doing 1.96x std so changes to 1xstd
+                    std = 1.96*np.sqrt(self.VOL['volumesigma'][i, j,:]/(self.VOL['volumeweight'][i, j,:]*self.VOL['volumeweight'][i, j,:]))
+                    maxmap410 = np.argmax(RF[l410])
+                    maxmap660 = np.argmax(RF[l660])
+
+                    if depths[l410[maxmap410]] > depths[l410[wb-1]] and depths[l410[maxmap410]] < depths[l410[-wb]] and depths[l660[maxmap660]] > depths[l660[wb-1]] and depths[l660[maxmap660]] < depths[l660[-wb]]:
+                        if self.VOL['volumeweight'][i, j, l410[maxmap410]] >= mincoverage:
+                            if RF[l410[maxmap410]] > std[l410[maxmap410]] and RF[l660[maxmap660]] > std[l660[maxmap660]]:
+                                dmap[i, j] = depths[l660[maxmap660]]-depths[l410[maxmap410]]
+
+            dmapall = np.ravel(dmap)
+
+            l = [l for l in range(len(dmapall)) if dmapall[l] > 210+1. and dmapall[l] < 290 - 1.]
+
+            median=         round(np.median((dmapall[l]))*100)/100
+            variance=       round(np.var((dmapall[l]))*100)/100
+
+            med_str='med = ' + str(median)
+            var_str='var = ' + str(variance)
+
+            print(med_str)
+            print(var_str)
+
+            xx, yy = np.meshgrid(self.VOL['grid_lon'], self.VOL['grid_lat'])
+
+            # %matplotlib inline
+            for i in range(len(xx)):
+                for j in range(len(yy)):
+                    if dmap.T[i][j] == np.NaN or dmap.T[i][j] < 200 or dmap.T[i][j] > 300:
+                        dmap.T[i][j] = median
+
+            ax.plot_surface(xx, yy, dmap.T, rstride=1, cstride=1, cmap='inferno')
+            ax.set_xlabel('Longitude / deg')
+            ax.set_ylabel('Latitude / deg')
+            ax.set_zlabel('Depth / km')
+
+            # LAND
+            # filename = "sabah_srtm.grd"
+            # gdal_data = gdal.Open(filename)
+            # gdal_band = gdal_data.GetRasterBand(1)
+            # nodataval = gdal_band.GetNoDataValue()
+
+            # # convert to a numpy array
+            # data_array = gdal_data.ReadAsArray().astype(np.float)
+            # data_array
+
+            # # replace missing values if necessary
+            # if np.any(data_array == nodataval):
+            #     data_array[data_array == nodataval] = 0
+
+            # plt.plot_surface(data_array, cmap = "turku", levels = list(range(0, 5000, 100)))
+
+            plt.show()
+
+
 #
 # Plot crossections
 #
@@ -474,7 +679,7 @@ class ccp_volume(object):
             w = self.VOL['volumeweight'][n,:,:].T
 
             xaxis = self.VOL['grid_lat']
-            xlabel = 'latitude (dg)'
+            xlabel = 'Latitude (degrees)'
             yends = [lon, lon]
             xends = [self.VOL['latmin'], self.VOL['latmax']]
 
@@ -486,7 +691,7 @@ class ccp_volume(object):
             vol_sig = self.VOL['volumesigma'][:, n,:].T.copy()
             w = self.VOL['volumeweight'][:, n,:].T
             xaxis = self.VOL['grid_lon']
-            xlabel = 'longitude (dg)'
+            xlabel = 'Longitude (degrees)'
             xends = [self.VOL['lonmin'], self.VOL['lonmax']]
             yends = [lat, lat]
 
@@ -513,12 +718,12 @@ class ccp_volume(object):
 
 
         plt.figure(figsize=(14, 8))
-        plt.tight_layout()
+        # plt.tight_layout()
 
         plt.subplot(2, 2, 2)
         m = Basemap(projection='merc', llcrnrlat=self.VOL['latmin'], urcrnrlat=self.VOL['latmax'], llcrnrlon=self.VOL['lonmin'], urcrnrlon=self.VOL['lonmax'], lat_ts=20, resolution='i')
-        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
-        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
+        m.drawparallels(np.arange(np.min(self.VOL['grid_lat']), np.max(self.VOL['grid_lat']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        m.drawmeridians(np.arange(np.min(self.VOL['grid_lon']), np.max(self.VOL['grid_lon']), 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
 
 
         m.drawcoastlines()
@@ -561,8 +766,8 @@ class ccp_volume(object):
         plt.xlim(xends)
         plt.plot([min(xaxis), max(xaxis)], [410, 410], '--k', linewidth=0.2)
         plt.plot([min(xaxis), max(xaxis)], [660, 660], '--k', linewidth=0.2)
-        plt.ylabel('Depth (km)', fontsize=12)
-        plt.xlabel(xlabel, fontsize=12)
+        plt.ylabel('Depth (km)', fontsize=18)
+        plt.xlabel(xlabel, fontsize=18)
 
         plt.subplot(2, 1, 2)
 
@@ -601,8 +806,8 @@ class ccp_volume(object):
         plt.scatter(np.round(xaxis/10.)*10., 80.*np.ones(len(xaxis),), 80, xaxis, rasterized=False)
         plt.plot([min(xaxis), max(xaxis)], [410, 410], '--k', linewidth=1)
         plt.plot([min(xaxis), max(xaxis)], [660, 660], '--k', linewidth=1)
-        plt.ylabel('Depth (km)', fontsize=12)
-        plt.xlabel(xlabel, fontsize=12)
+        plt.ylabel('Depth (km)', fontsize=18)
+        plt.xlabel(xlabel, fontsize=18)
         plt.xlim([min(xaxis), max(xaxis)])
 
 
@@ -620,13 +825,13 @@ class ccp_volume(object):
 #
 # Plot crossections
 #
-
+    #################################################################ß
     def plot_crosssection_any(self, lon1,lon2,lat1,lat2,numpoints=200,amplify=1.,name='Megavolume',conversion='prem',filter='jgf1',factor=2.,zoom=False,mincoverage=10.):
         # set volume lats and lons
         # window buffer at end of depth array to not pick.
         wb=5
-        
-        plt.figure(figsize=(14, 8))
+
+        plt.figure(figsize=(12,8))
         plt.tight_layout()
 
         inv = geo.WGS84.Inverse(lat1, lon1, lat2, lon2)
@@ -654,7 +859,7 @@ class ccp_volume(object):
         row = (lons-np.min(self.VOL['grid_lon']))/(self.VOL['grid_lon'][1]-self.VOL['grid_lon'][0])
         for i in range(len(row)):
             if row[i] < 0:
-                row[i] = row[i]+len(self.lon)
+                row[i] = row[i]+len(lons)
         col = (lats-np.min(self.VOL['grid_lat']))/(self.VOL['grid_lat'][1]-self.VOL['grid_lat'][0])
 
         for dp in range(len(self.VOL['grid_depth'])):
@@ -690,11 +895,11 @@ class ccp_volume(object):
                 else:
                     crossec[i, j] = 1000.
 
-
+    # Map
         plt.subplot(2, 2, 2)
         m = Basemap(projection='merc', llcrnrlat=self.VOL['latmin'], urcrnrlat=self.VOL['latmax'], llcrnrlon=self.VOL['lonmin'], urcrnrlon=self.VOL['lonmax'], lat_ts=20, resolution='i')
-        m.drawparallels(np.arange(-40, 40, 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
-        m.drawmeridians(np.arange(-20, 60, 20.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=12)
+        m.drawparallels(np.arange(-40, 40, 10.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
+        m.drawmeridians(np.arange(-20, 60, 20.), labels=[1, 0, 0, 1], linewidth=0.2, dashes=[4, 2], labelstyle='+/-', fontsize=18)
         m.drawcoastlines()
         m.drawcountries()
 
@@ -703,11 +908,11 @@ class ccp_volume(object):
         x2, y2 = m(xends[1], yends[1])
         m.plot([x1, x2], [y1, y2], color='r', linewidth=1, zorder=1)
 
-
+    # Stack 1: colourmap
         plt.subplot(2, 2, 1)
         xx, yy = np.meshgrid(dist, depths)
 
-        cs = plt.pcolor(xx, yy, crossec, vmin=-0.15, vmax=0.15, rasterized=True,cmap=cm.coolwarm)
+        cs = plt.pcolor(xx, yy, crossec, vmin=-0.3, vmax=0.3, rasterized=True,cmap=cm.coolwarm)
         plt.colorbar()
         cs.cmap.set_over([0.8, 0.8, 0.8])
         if zoom:
@@ -715,18 +920,22 @@ class ccp_volume(object):
         else:
             plt.ylim([min(depths), max(depths)])
         plt.gca().invert_yaxis()
-        plt.xlim([min(dist), max(dist)])
+        plt.xlim([min(dist),max(dist)])
         plt.plot([min(xaxis), max(xaxis)], [410, 410], '--k', linewidth=0.2)
         plt.plot([min(xaxis), max(xaxis)], [660, 660], '--k', linewidth=0.2)
-        plt.ylabel('Depth (km)', fontsize=12)
-        plt.xlabel('Angular distance (dg)', fontsize=12)
 
         # corrected by 3D model
         # normalize
 
         norm = 0.2/amplify#np.max(np.max(np.abs(crossec_3D)))/amplify
 
+        plt.ylabel('Depth (km)', fontsize=18)
+        plt.xlabel('Distance', fontsize=18)
 
+
+
+
+# Stack 2: waveforms
         ax=plt.subplot(2,1,2)
         pos1 = ax.get_position() # get the original position
         pos2 = [pos1.x0 , pos1.y0 ,  pos1.width/14*8, pos1.height]
@@ -734,6 +943,7 @@ class ccp_volume(object):
         ax.set_position(pos2) # set a new position
 
         # plot
+
 
         for t in np.arange(0, len(dist), 1):
 
@@ -767,8 +977,8 @@ class ccp_volume(object):
                     if np.abs(RF3[l660[max660]])>std[l660[max660]]/norm: # /1.96:
                         plt.plot([dist[t]+0.1, 0.5*RF2[l660[max660]]+dist[t]], [depths[ind], depths[ind]], 'y', linewidth=4)
 
-        plt.ylabel('Depth (km)', fontsize=12)
-        plt.xlabel('Angular distance (dg)', fontsize=12)
+        plt.ylabel('Depth (km)', fontsize=18)
+        plt.xlabel('Angular distance (dg)', fontsize=18)
         plt.xlim([min(dist), max(dist)])
         plt.plot([min(dist), max(dist)], [410, 410], '--k', linewidth=1)
         plt.plot([min(dist), max(dist)], [660, 660], '--k', linewidth=1)
@@ -870,7 +1080,7 @@ class ccp_volume(object):
             cmbl = plt.cm.get_cmap('bone_r')
             for d, p in zip(n, patches):
                 plt.setp(p, 'facecolor', cmbl(d/max(n)*0.6+0.2))
-            plt.text(646, 180, 'a.', fontsize=12)
+            plt.text(646, 180, 'a.', fontsize=18)
             plt.gca().set_xticks([650, 660, 670, 680, 690])
             plt.xlim([645, 695])
         else:
@@ -878,12 +1088,12 @@ class ccp_volume(object):
             cmbl = plt.cm.get_cmap('bone_r')
             for d, p in zip(n, patches):
                 plt.setp(p, 'facecolor', cmbl(d/max(n)*0.6+0.2))
-            plt.text(386, 180, 'a.', fontsize=12)
+            plt.text(386, 180, 'a.', fontsize=18)
             plt.gca().set_xticks([390, 400, 410, 420, 430])
             plt.xlim([385, 435])
 
         plt.ylabel('# of grid points')
-        plt.gca().set_yticks([0, 50, 100, 150, 200])
+        # plt.gca().set_yticks([0, 50, 100, 150, 200])
         ax.spines['top'].set_visible(False)
         ax.spines['left'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -902,11 +1112,11 @@ class ccp_volume(object):
         if d660:
             plt.xlim([645, 695])
             plt.xlabel('660 depth (km)')
-            plt.text(646, 380, 'b.', fontsize=12)
+            plt.text(646, 380, 'b.', fontsize=18)
         else:
             plt.xlim([385, 435])
             plt.xlabel('410 depth (km)')
-            plt.text(386, 380, 'b.', fontsize=12)
+            plt.text(386, 380, 'b.', fontsize=18)
         plt.ylim([350, 750])
         plt.gca().invert_yaxis()
         box = plt.gca().get_position()

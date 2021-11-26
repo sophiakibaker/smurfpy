@@ -13,18 +13,27 @@ README last updated by: S. Baker, 26/11/21
 
 **AUTOMATED RUNNING OF:**
 
+    1:
+
 1. Processing_Scripts
     --> Data download, pre-processing, RF calculation, post-processing (inc. quality control)
+    
+    2:
+    
 2. Migration_Scripts
     --> Calculate RF pierce points, 1D & 3D time-to-depth conversion
 3. Stacking_Scripts
     --> Epicentral distance, depth, slowness, common-conversion-point stacking
 4. Plotting_Scripts
     --> Plot Pierce points, CCP stack volumes (weights, Maps, XC etc)
+    
+    
+**REQUIRES:**
+
 5. Tools
     --> Misc tools (inc velocity models)
-6. South_Africa_Data
-    --> Test dataset from XA network in Southern Africa
+    
+***THESE SCRIPTS REQUIRE MATPLOTLIB 3.2, NUMPY 1.17***
     
     
 -----------------------------------------------------------------------
@@ -50,9 +59,30 @@ Earlier papers using SMURFPy are:
 • Van Stiphout., A.M., Cottaar, S. and Deuss, A., 2019. Receiver function mapping of mantle transition zone discontinuities beneath Alaska using scaled 3-D velocity corrections. Geophysical Journal International, 219(2), pp.1432-1446.  
 • Cottaar, S. and Deuss, A., 2016, Large-scale mantle discontinuity topography beneath Europe: signature of akimotoite in subducting slabs, Journal of Geophysical Research, 121, 279-292  
 
----------------------------------------------------------------------------------------------------
---------------------------- Processing SCRIPTS (old descriptions) ---------------------------------
----------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+--------------------------- ONESHOT SCRIPTS: ---------------------------------
+------------------------------------------------------------------------------
+
+**# 1_receiver_function_generation.py**
+Description:           Run smurfpy for every filter; options to download data from IRIS or import own data files
+Inputs:                data directory, lonmin, lonmax, latmin, latmax, binsize, smoothing, min_epi, max_epi, dates, datef
+Outputs:               epicentral distance, depth and slowness stacks; piercing point plots for P410s and P660s
+                       CCP stacks; for filters jgf1,2,3 and tff1,2,3,4,5\n
+Usage:                 export PATH="/PATH/TO/TauP-2.5.0/bin:$PATH"
+                       python3 1_receiver_function_generation.py MetMalaysia 110 122 0 12 /PATH/TO/RAW/DATA /PATH/TO/STATION/LIST 30 90 2018-01-01 2019-01-01
+                       
+**# 2_stacking_and_plotting.py**
+Description:           Run smurfpy for every filter')
+Inputs:                data directory, lonmin, lonmax, latmin, latmax, binsize, smoothing, min_epi, max_epi, dates, datef
+Outputs:               epicentral distance, depth and slowness stacks; piercing point plots for P410s and P660s;
+                       CCP stacks; for filters jgf1,2,3 and tff1,2,3,4,5\n
+Usage:                 export PATH="/PATH/TO/TauP-2.5.0/bin:$PATH"
+                       python3 2_stacking_and_plotting.py MetMalaysia 110 122 0 12 3 True 30 90 2018-01-01 2019-01-01
+
+-------------------------------------------------------------------------------------------------------------------------
+--------------------------- ONESHOT SCRIPTS RUN ADAPTED VERSIONS OF: (old descriptions) ---------------------------------
+-------------------------------------------------------------------------------------------------------------------------
 
 # 1_download_data_per_station.py  
 • Description: select and download appropriate events and stations based on user inputs  

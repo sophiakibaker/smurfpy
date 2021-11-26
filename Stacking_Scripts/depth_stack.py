@@ -38,290 +38,294 @@ pylab.rcParams.update(params)
 
 
 # Command line help
-if len(sys.argv) != 7 or str(sys.argv[1]).lower() == 'help':
-    print('\n')
-    print('-----------------------------------------------------------------------------------------------------------------------')
-    print(sys.argv[0])
-    print('-----------------------------------------------------------------------------------------------------------------------')
-    print('Description:           Stacks all the RFs within the bounds for the depth stated producing one trace.')
-    print('Inputs:                depth conversion, lon/lat box, filter band')
-    print('Outputs:               Depth stack pickle file and pdf/png)\n')
-    print('Usage:                 >> python3 depth_stack.py conversion lonmin lonmax latmin latmax rffilter')
-    print('Format                 1: [str], 2-5: [int], 6: [str]')
-    print('Recommended:           >> python3 depth_stack.py prem -179 179 -89 89 jgf1')
-    print('-----------------------------------------------------------------------------------------------------------------------')
-    print('\n')
-    sys.exit()
+# if len(sys.argv) != 7 or str(sys.argv[1]).lower() == 'help':
+#     print('\n')
+#     print('-----------------------------------------------------------------------------------------------------------------------')
+#     print(sys.argv[0])
+#     print('-----------------------------------------------------------------------------------------------------------------------')
+#     print('Description:           Stacks all the RFs within the bounds for the depth stated producing one trace.')
+#     print('Inputs:                depth conversion, lon/lat box, filter band')
+#     print('Outputs:               Depth stack pickle file and pdf/png)\n')
+#     print('Usage:                 >> python3 depth_stack.py conversion lonmin lonmax latmin latmax rffilter')
+#     print('Format                 1: [str], 2-5: [int], 6: [str]')
+#     print('Recommended:           >> python3 depth_stack.py prem -179 179 -89 89 jgf1')
+#     print('-----------------------------------------------------------------------------------------------------------------------')
+#     print('\n')
+#     sys.exit()
 
 # Initial options
-conv = str(sys.argv[1])
-lonmin = int(sys.argv[2]) 
-lonmax = int(sys.argv[3]) 
-latmin = int(sys.argv[4]) 
-latmax = int(sys.argv[5])
-rffilter=str(sys.argv[6])
+# conv = str(sys.argv[1])
+# lonmin = int(sys.argv[2]) 
+# lonmax = int(sys.argv[3]) 
+# latmin = int(sys.argv[4]) 
+# latmax = int(sys.argv[5])
+# rffilter=str(sys.argv[6])
 
-filt = rffilter # RF type to use
-conversion = conv # Converstion to use
+def depth_stack(Data, noise, conv, lonmin, lonmax, latmin, latmax, rffilter):
+    filt = rffilter # RF type to use
+    conversion = conv # Converstion to use
+    Results = Data+'_Results'
 
-# Recommended settings
-norm_depth = 150 # depth beyond which to normalize
-norm_fact = 0.2 # Normalization factor
-dp = 410  # Depth of piercepoints and Pds phase to select data by
+    # Recommended settings
+    norm_depth = 150 # depth beyond which to normalize
+    norm_fact = 0.2 # Normalization factor
+    dp = 410  # Depth of piercepoints and Pds phase to select data by
 
-#Set directories for inputs / outputs
-direcs=glob.glob('../Data/*')
-savedir='../Depth_Stacks/'
-if not os.path.exists(savedir):
-    os.makedirs(savedir)
-savepath=savedir+conversion
-if not os.path.exists(savepath):
-    os.makedirs(savepath)
+    #Set directories for inputs / outputs
+    direcs=glob.glob(Data+'/*')
+    savedir=Results+'/Depth_Stacks/'
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
+    savepath=savedir+conversion
+    if not os.path.exists(savepath):
+        os.makedirs(savepath)
 
-# Lat and Lon constraints, piercepoints within this box will be accepted 
-lat1 = latmax
-lon1 = lonmin
-lat2 = lat1
-lon2 = lonmax
-lat3 = latmin
-lon3 = lon2
-lat4 = lat3
-lon4 = lon1
+    # Lat and Lon constraints, piercepoints within this box will be accepted 
+    lat1 = latmax
+    lon1 = lonmin
+    lat2 = lat1
+    lon2 = lonmax
+    lat3 = latmin
+    lon3 = lon2
+    lat4 = lat3
+    lon4 = lon1
 
-box = Polygon([(lat1,lon1),(lat2,lon2),(lat3,lon3),(lat4,lon4)])
+    box = Polygon([(lat1,lon1),(lat2,lon2),(lat3,lon3),(lat4,lon4)])
 
-#Make list of all events
-stalist = []
-for direc in direcs:
-    print(direc)
-    if os.path.isfile(direc + '/selected_RFs_' + filt + '.dat'):
-        with open(direc + '/selected_RFs_' + filt + '.dat') as a:
-            starfs = a.read().splitlines()
-            for line in starfs:
-                stalist.append(line)
+    #Make list of all events
+    stalist = []
+    for direc in direcs:
+        # print(direc)
+        if os.path.isfile(direc + '/selected_RFs_' + noise+ filt + '.dat'):
+            with open(direc + '/selected_RFs_' + noise+ filt + '.dat') as a:
+                starfs = a.read().splitlines()
+                for line in starfs:
+                    stalist.append(line)
 
-#Set up checking counts and event lists
-count_yes = 0
-count_no = 0
-List_yes = []
-List_no = []
-c = 0
+    #Set up checking counts and event lists
+    count_yes = 0
+    count_no = 0
+    List_yes = []
+    List_no = []
+    c = 0
 
-#--------------------------Main Loop----------------------
+    #--------------------------Main Loop----------------------
 
-#Loop through events
-for s in range(len(stalist)):   
-    print (stalist[s])
-    c = c +1
-    print (c)
+    #Loop through events
+    for s in range(len(stalist)):   
+        print (stalist[s])
+        c = c +1
+        print (c)
 
-    #Read in the file
-    seis = read(stalist[s],format='PICKLE')
-    RF = getattr(seis[0],filt)
-    stel = round(seis[0].stats['stel'],3) #  Use above ground staitons for simplicity.
+        #Read in the file
+        seis = read(stalist[s],format='PICKLE')
+        RF = getattr(seis[0],filt)
 
-    #Make all RFs of same length
-    while len(RF['iterativedeconvolution']) < 1751:
-        RF['iterativedeconvolution'] = np.append(RF['iterativedeconvolution'],0)
-        RF['time'] = np.append(RF['time'],RF['time'][-1]+0.1)
-        seis[0].conversions[conversion]['depthsfortime'] = np.append(seis[0].conversions[conversion]['depthsfortime'],1200.)
-    
-    #Extract the pierce points
-    trace_pierce = seis[0].stats['piercepoints']['P'+str(dp)+'s'][str(dp)]
-    print (trace_pierce)
+        stel = round(float(seis[0].stats['stel']),3) #  Use above ground staitons for simplicity.
 
-    #Define lat and lon of event pierce points
-    latpp = float(trace_pierce[1])
-    lonpp = float(trace_pierce[2])
-    
-    #Make the few positive (east) lon degrees an extension of negative
-    if lonpp >= 0:
-        lonpp = lonpp - 360
-
-    #Make Shapely points
-    point = Point(float(trace_pierce[1]), float(trace_pierce[2]))
-
-    #Check whether event pierce points located within bounds of regions
-    if box.contains(point) and stel >= 0.0:
-        print ('yes')
-
-        #Add to list and count
-        List_yes.append(stalist[s])
-        count_yes = count_yes + 1
-	
-        if count_yes <= 1:
-            #Create depth stack
-            start_depth = seis[0].conversions[conversion]['depths'][0]
-            stop_depth = 1200
-            step = (stop_depth - start_depth) + 1
-            depth_space = np.linspace(start_depth,stop_depth,int(step))
-            STACK=np.zeros(len(depth_space))
-
-        start_depth = seis[0].conversions[conversion]['depths'][0]
-        stop_depth = seis[0].conversions[conversion]['depths'][-1]
-
-        # for larger data sets, we should consider writing out the interpolated values...
-        interp = interpolate.interp1d(seis[0].conversions[conversion]['depthsfortime'],RF['iterativedeconvolution'] )
-        RFdata_depth = interp(depth_space)
-
-        #Add this amplitude to the stack
-        STACK[:] = STACK[:] + RFdata_depth[:]
-
-    #If not within bounds of region
-    else:
-        print ('no')
-
-        #Add to list and count
-        List_no.append(stalist[s])
-        count_no = count_no + 1
-
-#Extract the regular depth intervals from the event
-depth = depth_space
-
-#Find average amplitudes
-amp_rel = STACK[:]/count_yes
-
-
-#--------------------------Error calculation----------------------
-
-#Set up total for deviations
-dev_sq_tot = 0
-c = 0
-
-#Loop through events
-for s in range(len(stalist)):
-    print (stalist[s])
-    c = c +1
-    print (c)
-    seis = read(stalist[s],format='PICKLE')
-    stel = round(seis[0].stats['stel'],3) #  Use above ground staitons for simplicity.
-
-    trace_pierce = seis[0].stats['piercepoints']['P'+str(dp)+'s'][str(dp)]
-    print (trace_pierce)
-    latpp = float(trace_pierce[1])
-    lonpp = float(trace_pierce[2])
-    if lonpp >= 0:
-        lonpp = lonpp - 360
-    #Make Shapely points
-    point = Point(float(trace_pierce[1]), float(trace_pierce[2]))
-	
-    #Make all RFs of smae length
-    while len(seis[0].conversions[conversion]['depthsfortime']) < 1751:
-        seis[0].conversions[conversion]['depthsfortime'] = np.append(seis[0].conversions[conversion]['depthsfortime'],1200.)
-
-    if box.contains(point) and stel >= 0.0:
-        print ('yes')
-
-        interp = interpolate.interp1d(seis[0].conversions[conversion]['depthsfortime'],RF['iterativedeconvolution'])
-        RFdata_depth = interp(depth_space)
-
-        amp = RFdata_depth
- 
-        #Find deviation from the mean
-        dev = amp_rel[:] - amp[:]
+        #Make all RFs of same length
+        while len(RF['iterativedeconvolution']) < 1751:
+            RF['iterativedeconvolution'] = np.append(RF['iterativedeconvolution'],0)
+            RF['time'] = np.append(RF['time'],RF['time'][-1]+0.1)
+            seis[0].conversions[conversion]['depthsfortime'] = np.append(seis[0].conversions[conversion]['depthsfortime'],1200.)
         
-        #Sqaure the deviation to make absolute
-        dev_sq = dev**2
-	
-        #Add this to total
-        dev_sq_tot = dev_sq_tot + dev_sq
+        #Extract the pierce points
+        trace_pierce = seis[0].stats['piercepoints']['P'+str(dp)+'s'][str(dp)]
+        print (trace_pierce)
 
-    #If not within bounds of region
-    else:
-        print ('no')
+        #Define lat and lon of event pierce points
+        latpp = float(trace_pierce[1])
+        lonpp = float(trace_pierce[2])
+        
+        #Make the few positive (east) lon degrees an extension of negative
+        if lonpp >= 0:
+            lonpp = lonpp - 360
 
-#Find the standard deviation by dividing by the sample numberand square root
-SD = np.sqrt(dev_sq_tot/(count_yes-1))
+        #Make Shapely points
+        point = Point(float(trace_pierce[1]), float(trace_pierce[2]))
 
-#Find the standard error by dividing the SD by the square root of the sample size
-SE = SD/(np.sqrt(count_yes))
+        #Check whether event pierce points located within bounds of regions
+        if box.contains(point) and stel >= 0.0:
+            print ('yes')
 
-#Normalise max value (direct P) to 1
-amp_rel[:]=amp_rel[:]/(np.nanmax(np.abs(amp_rel[:])))
+            #Add to list and count
+            List_yes.append(stalist[s])
+            count_yes = count_yes + 1
+        
+            if count_yes <= 1:
+                #Create depth stack
+                start_depth = seis[0].conversions[conversion]['depths'][0]
+                stop_depth = 1200
+                step = (stop_depth - start_depth) + 1
+                print(step)
+                depth_space = np.linspace(start_depth,stop_depth,int(step))
+                STACK=np.zeros(len(depth_space))
 
-#Add and subtract SE from amp_rel to show spread of error
-amp_rel_1SE_P = amp_rel[:] + SE
-amp_rel_1SE_N = amp_rel[:] - SE
-amp_rel_2SE_P = amp_rel[:] + SE*2
-amp_rel_2SE_N = amp_rel[:] - SE*2
+            start_depth = seis[0].conversions[conversion]['depths'][0]
+            stop_depth = seis[0].conversions[conversion]['depths'][-1]
+
+            # for larger data sets, we should consider writing out the interpolated values...
+            interp = interpolate.interp1d(seis[0].conversions[conversion]['depthsfortime'],RF['iterativedeconvolution'] )
+            RFdata_depth = interp(depth_space)
+
+            #Add this amplitude to the stack
+            STACK[:] = STACK[:] + RFdata_depth[:]
+
+        #If not within bounds of region
+        else:
+            print ('no')
+
+            #Add to list and count
+            List_no.append(stalist[s])
+            count_no = count_no + 1
+
+    #Extract the regular depth intervals from the event
+    depth = depth_space
+
+    #Find average amplitudes
+    amp_rel = STACK[:]/count_yes
 
 
-int_depth = np.argmin(np.abs(depth_space-norm_depth))
-#Re-normalise later sections to emphasise the small phases
-amp_rel[int_depth:-1]=amp_rel[int_depth:-1]/norm_fact
+    #--------------------------Error calculation----------------------
+
+    #Set up total for deviations
+    dev_sq_tot = 0
+    c = 0
+
+    #Loop through events
+    for s in range(len(stalist)):
+        print (stalist[s])
+        c = c +1
+        print (c)
+        seis = read(stalist[s],format='PICKLE')
+        stel = round(float(seis[0].stats['stel']),3) #  Use above ground staitons for simplicity.
+
+        trace_pierce = seis[0].stats['piercepoints']['P'+str(dp)+'s'][str(dp)]
+        print (trace_pierce)
+        latpp = float(trace_pierce[1])
+        lonpp = float(trace_pierce[2])
+        if lonpp >= 0:
+            lonpp = lonpp - 360
+        #Make Shapely points
+        point = Point(float(trace_pierce[1]), float(trace_pierce[2]))
+        
+        #Make all RFs of smae length
+        while len(seis[0].conversions[conversion]['depthsfortime']) < 1751:
+            seis[0].conversions[conversion]['depthsfortime'] = np.append(seis[0].conversions[conversion]['depthsfortime'],1200.)
+
+        if box.contains(point) and stel >= 0.0:
+            print ('yes')
+
+            interp = interpolate.interp1d(seis[0].conversions[conversion]['depthsfortime'],RF['iterativedeconvolution'])
+            RFdata_depth = interp(depth_space)
+
+            amp = RFdata_depth
+    
+            #Find deviation from the mean
+            dev = amp_rel[:] - amp[:]
+            
+            #Sqaure the deviation to make absolute
+            dev_sq = dev**2
+        
+            #Add this to total
+            dev_sq_tot = dev_sq_tot + dev_sq
+
+        #If not within bounds of region
+        else:
+            print ('no')
+
+    #Find the standard deviation by dividing by the sample numberand square root
+    SD = np.sqrt(dev_sq_tot/(count_yes-1))
+
+    #Find the standard error by dividing the SD by the square root of the sample size
+    SE = SD/(np.sqrt(count_yes))
+
+    #Normalise max value (direct P) to 1
+    amp_rel[:]=amp_rel[:]/(np.nanmax(np.abs(amp_rel[:])))
+
+    #Add and subtract SE from amp_rel to show spread of error
+    amp_rel_1SE_P = amp_rel[:] + SE
+    amp_rel_1SE_N = amp_rel[:] - SE
+    amp_rel_2SE_P = amp_rel[:] + SE*2
+    amp_rel_2SE_N = amp_rel[:] - SE*2
 
 
-#Re-normalise later sections for errors
-amp_rel_1SE_P[int_depth:-1]=amp_rel_1SE_P[int_depth:-1]/norm_fact
-amp_rel_1SE_N[int_depth:-1]=amp_rel_1SE_N[int_depth:-1]/norm_fact
-amp_rel_2SE_P[int_depth:-1]=amp_rel_2SE_P[int_depth:-1]/norm_fact
-amp_rel_2SE_N[int_depth:-1]=amp_rel_2SE_N[int_depth:-1]/norm_fact
+    int_depth = np.argmin(np.abs(depth_space-norm_depth))
+    #Re-normalise later sections to emphasise the small phases
+    amp_rel[int_depth:-1]=amp_rel[int_depth:-1]/norm_fact
 
 
-#Print checks
-print (count_yes)
-print (count_no)
+    #Re-normalise later sections for errors
+    amp_rel_1SE_P[int_depth:-1]=amp_rel_1SE_P[int_depth:-1]/norm_fact
+    amp_rel_1SE_N[int_depth:-1]=amp_rel_1SE_N[int_depth:-1]/norm_fact
+    amp_rel_2SE_P[int_depth:-1]=amp_rel_2SE_P[int_depth:-1]/norm_fact
+    amp_rel_2SE_N[int_depth:-1]=amp_rel_2SE_N[int_depth:-1]/norm_fact
 
 
-#--------------------------Plotting----------------------
+    #Print checks
+    print (count_yes)
+    print (count_no)
 
-#Plot the relative amplitudes against the depth points
-plt.plot(amp_rel, depth, 'k', lw = 1.5)
 
-#Plot error lines
-plt.plot(amp_rel_1SE_P, depth, 'k--', lw = 0.75, color='0.75')
-plt.plot(amp_rel_1SE_N, depth, 'k--', lw = 0.75, color='0.75')
-plt.plot(amp_rel_2SE_P, depth, 'k--', lw = 1, color='0.5')
-plt.plot(amp_rel_2SE_N, depth, 'k--', lw = 1, color='0.5')
+    #--------------------------Plotting----------------------
+    plt.figure(figsize=(8,12))
+    #Plot the relative amplitudes against the depth points
+    plt.plot(amp_rel, depth, 'k', lw = 1.5)
 
-#Fill the postive values with red, negative with blue
-plt.fill_betweenx(depth, 0, amp_rel_2SE_N, where=amp_rel_2SE_N >= 0, facecolor=[1, 0.4, 0.4])
-plt.fill_betweenx(depth, 0, amp_rel_2SE_P, where=amp_rel_2SE_P <= 0, facecolor=[0.4, 0.4, 1])
+    #Plot error lines
+    plt.plot(amp_rel_1SE_P, depth, 'k--', lw = 0.75, color='0.75')
+    plt.plot(amp_rel_1SE_N, depth, 'k--', lw = 0.75, color='0.75')
+    plt.plot(amp_rel_2SE_P, depth, 'k--', lw = 1, color='0.5')
+    plt.plot(amp_rel_2SE_N, depth, 'k--', lw = 1, color='0.5')
 
-#Make label for y axis (none for x)
-plt.ylabel('depth (km)', fontsize=16)
-plt.xticks([])
+    #Fill the postive values with red, negative with blue
+    plt.fill_betweenx(depth, 0, amp_rel_2SE_N, where=amp_rel_2SE_N >= 0, facecolor=[1, 0.4, 0.4])
+    plt.fill_betweenx(depth, 0, amp_rel_2SE_P, where=amp_rel_2SE_P <= 0, facecolor=[0.4, 0.4, 1])
 
-#Create dotted lines to show where there are new normalisations
-x=[-0.5,1.1]
-y1=[150,150]
-plt.plot(x,y1, 'k--')
+    #Make label for y axis (none for x)
+    plt.ylabel('depth (km)', fontsize=16)
+    plt.xticks([])
 
-#Set axis limits and invert y axis
-plt.gca().set_xlim([-0.5,1.1])
-plt.gca().set_ylim([0,1200])
-plt.gca().invert_yaxis()
-plt.gca().tick_params(labelsize=16)
+    #Create dotted lines to show where there are new normalisations
+    x=[-0.5,1.1]
+    y1=[150,150]
+    plt.plot(x,y1, 'k--')
 
-#Make title of plot
-plt.suptitle('Depth Stack - PP: '+str(dp)+'km - No. of RFs: '+str(count_yes)+'\n Lat/Lon: '+str(lat1)+'/'+str(lat3)+'/'+str(lon1)+'/'+str(lon2)+'\n Filter: '+str(filt)+' Conversion: '+str(conversion))
+    #Set axis limits and invert y axis
+    plt.gca().set_xlim([-0.5,1.1])
+    plt.gca().set_ylim([0,1200])
+    plt.gca().invert_yaxis()
+    plt.gca().tick_params(labelsize=16)
 
-#Save figures
-plt.savefig(savepath +'/Depth_Stack_'+str(filt)+'_'+str(conversion)+'_'+str(count_yes)+'RFs_loc'+str(lat1)+'_'+str(lat3)+'_'+str(lon1)+'_'+str(lon2)+'.pdf')
-plt.savefig(savepath+'/Depth_Stack_'+str(filt)+'_'+str(conversion)+'_'+str(count_yes)+'RFs_loc'+str(lat1)+'_'+str(lat3)+'_'+str(lon1)+'_'+str(lon2)+'.png')
+    #Make title of plot
+    plt.suptitle('Depth Stack - PP: '+str(dp)+'km - No. of RFs: '+str(count_yes)+'\n Lat/Lon: '+str(lat1)+'/'+str(lat3)+'/'+str(lon1)+'/'+str(lon2)+'\n Filter: '+str(filt)+' Conversion: '+str(conversion))
 
-#Show the plot
-plt.show()
+    #Save figures
+    plt.savefig(savepath +'/Depth_Stack_'+noise+str(filt)+'_'+str(conversion)+'_'+str(count_yes)+'RFs_loc'+str(lat1)+'_'+str(lat3)+'_'+str(lon1)+'_'+str(lon2)+'.pdf')
+    plt.savefig(savepath+'/Depth_Stack_'+noise+str(filt)+'_'+str(conversion)+'_'+str(count_yes)+'RFs_loc'+str(lat1)+'_'+str(lat3)+'_'+str(lon1)+'_'+str(lon2)+'.png')
 
-#-------------------------------Save stack as pickle file----------------------------
+    #Show the plot
+    # plt.show()
 
-outpickle=dict()
-outpickle['depth']=depth
-outpickle['amp_rel']=amp_rel
-outpickle['amp_rel_1SE_P']=amp_rel_1SE_P
-outpickle['amp_rel_1SE_N']=amp_rel_1SE_N
-outpickle['amp_rel_2SE_P']=amp_rel_2SE_P
-outpickle['amp_rel_2SE_N']=amp_rel_2SE_N
-outpickle['PP_depth']=dp
-outpickle['no_RFs']=count_yes
-outpickle['latmin']=lat1
-outpickle['latmax']=lat3
-outpickle['lonmin']=lon1
-outpickle['lonmax']=lon2
-outpickle['filter']=filt
-outpickle['conversion']=conversion
+    #-------------------------------Save stack as pickle file----------------------------
 
-output_file=str(savepath+'/Depth_Stack_'+str(filt)+'_'+str(conversion)+'_'+str(count_yes)+'RFs_loc'+str(lat1)+'_'+str(lat3)+'_'+str(lon1)+'_'+str(lon2)+'.PICKLE')
-out_put_write=open(output_file,'wb')
-pickle.dump(outpickle, out_put_write)
-out_put_write.close
+    outpickle=dict()
+    outpickle['depth']=depth
+    outpickle['amp_rel']=amp_rel
+    outpickle['amp_rel_1SE_P']=amp_rel_1SE_P
+    outpickle['amp_rel_1SE_N']=amp_rel_1SE_N
+    outpickle['amp_rel_2SE_P']=amp_rel_2SE_P
+    outpickle['amp_rel_2SE_N']=amp_rel_2SE_N
+    outpickle['PP_depth']=dp
+    outpickle['no_RFs']=count_yes
+    outpickle['latmin']=lat1
+    outpickle['latmax']=lat3
+    outpickle['lonmin']=lon1
+    outpickle['lonmax']=lon2
+    outpickle['filter']=filt
+    outpickle['conversion']=conversion
+
+    output_file=str(savepath+'/Depth_Stack_'+ noise+str(filt)+'_'+str(conversion)+'_'+str(count_yes)+'RFs_loc'+str(lat1)+'_'+str(lat3)+'_'+str(lon1)+'_'+str(lon2)+'.PICKLE')
+    out_put_write=open(output_file,'wb')
+    pickle.dump(outpickle, out_put_write)
+    out_put_write.close

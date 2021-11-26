@@ -1,13 +1,14 @@
 # common conversion point stacking
 
 # import modules
+import sys
 
 import numpy as np
 import os
 import os.path
 import math
 import msgpack
-import msgpack_numpy as m
+import msgpack_numpy as m #msgpack-numpy
 m.patch()
 from obspy import read
 
@@ -15,6 +16,10 @@ from obspy import read
 # definition of the half width of the fresnel zone
 knotspacing = lambda r, vs: 1./2.*np.sqrt(((10./3.*vs)+r)**2.-r**2.) # in m for a 10s wave
 
+Data = str(sys.argv[1])
+Results = Data+'_Results'
+
+pathtotools = '/Users/r03sb21/Documents/smurfpy/Tools/'
 
 def haversine(lat1, long1, lats2, longs2,depth):
     """
@@ -76,7 +81,7 @@ class ccp_volume(object):
 # Start a new volume dictionary
 #############################################################################
 
-    def start_empty_volume(self,name='Megavolume',filter='rff2',conversion='prem',  factor=1., lonmin=None, lonmax=None, lonrez=None, latmin=None,latmax=None,latrez=None, depmin=None,depmax=None,deprez=None):
+    def start_empty_volume(self, noisefilter, name='Megavolume',filter='rff2',conversion='prem',  factor=1., lonmin=None, lonmax=None, lonrez=None, latmin=None,latmax=None,latrez=None, depmin=None,depmax=None,deprez=None):
         '''
         Start the empty CCP volume
 
@@ -94,25 +99,25 @@ class ccp_volume(object):
         '''
 
         #Make directory for the volumes
-        dirout='../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)
+        dirout=Results+'/CCP_volumes/'+name+'_'+noisefilter+filter+'_'+conversion+'_'+str(factor)
         if not os.path.exists(dirout):
             os.makedirs(dirout)
         if not os.path.exists(dirout+'/RF_lists/'):
             os.makedirs(dirout+'/RF_lists/')
         # Store initial empty PICKLE
-        outfilename='../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/Stack_0.PICKLE'
+        outfilename=Results+'/CCP_volumes/'+name+'_'+noisefilter+filter+'_'+conversion+'_'+str(factor)+'/Stack_0.PICKLE'
 
         #setup volume grid
-        grid_depth=np.linspace(depmin,depmax,num=int(deprez))
-        grid_lon=np.linspace(lonmin,lonmax,num=int(lonrez))
-        grid_lat=np.linspace(latmin,latmax,num=int(latrez))
+        grid_depth=np.linspace(depmin,depmax,num=deprez)
+        grid_lon=np.linspace(lonmin,lonmax,num=lonrez)
+        grid_lat=np.linspace(latmin,latmax,num=latrez)
 
 
         # Read in STW105 for the velocities used in the fresnel zone width
         # (I forgett why I use this model instead of prem. Not that it matters much...it's only used for the weighting factors)
         #Replace with PREM
         table=[] 
-        for line in open('../Tools/STW105.txt').readlines()[3:]:
+        for line in open(pathtotools + 'STW105.txt').readlines()[3:]:
             if line[0]!='#':
                 numbers= list(map(float,line.split()))
                 table.append(numbers)
@@ -156,7 +161,7 @@ class ccp_volume(object):
             msgpack.pack(self.VOL,handle, use_bin_type=True)
             handle.close()
 
-        with open('../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat','w') as handle:
+        with open(Results+'/CCP_volumes/'+name+'_'+ noisefilter + filter+'_'+conversion+'_'+str(factor)+'/filenames.dat','w') as handle:
             handle.write('%d %s \n'% (0, outfilename))
             handle.close()
 
@@ -170,12 +175,12 @@ class ccp_volume(object):
 #############################################################################
 # Load latest volume to dictionary
 #############################################################################
-    def load_latest(self,name='Megavolume',filter='jgf1',conversion='prem',factor=2.):
+    def load_latest(self,noisefilter,name='Megavolume',filter='jgf1',conversion='prem',factor=2.):
         '''
         Loads latest volume
         '''
         print(name)
-        line=open('Volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat','r').readlines()[-1]
+        line=open('Volumes/'+name+'_'+noisefilter+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat','r').readlines()[-1]
         runnum=int(float(line.split()[0]))
         volumefile=line.split()[1]
         print(runnum, volumefile)
@@ -193,19 +198,19 @@ class ccp_volume(object):
 # Add list of receiver functions to Volume
 #############################################################################
 
-    def addlist(self,rflist,name='Megavolume',filter='jgf1',conversion='prem',factor=2.):
+    def addlist(self,noisefilter, rflist,name='Megavolume',filter='jgf1',conversion='prem',factor=2.):
         ''' 
         Adds list of PICKLE files to volume
         The code has no trouble adding the same PICKLE file twice, which means those are not double weighted in the stack. Might need a fix...
         '''
         ## set volume lats and lons
         rffilter=filter
-        line=open('../CCP_volumes/'+name+'_'+rffilter+'_'+conversion+'_'+str(factor)+'/filenames.dat','r').readlines()[-1]
+        line=open(Results+'/CCP_volumes/'+name+'_'+str(noisefilter)+rffilter+'_'+conversion+'_'+str(factor)+'/filenames.dat','r').readlines()[-1]
         runnum=int(float(line.split()[0]))
         volumefile=line.split()[1]
         print(runnum, volumefile)
  
-        rffile=open('../CCP_volumes/'+name+'_'+rffilter+'_'+conversion+'_'+str(factor)+'/RF_lists/rflist'+(str(runnum+1))+'.dat','a')
+        rffile=open(Results+'/CCP_volumes/'+name+'_'+noisefilter+rffilter+'_'+conversion+'_'+str(factor)+'/RF_lists/rflist'+(str(runnum+1))+'.dat','a')
 
         for i in range(len(rflist)): #range(cat.count()): # loop through all receiver functions for a given station
             print(i, 'out of', len(rflist))
@@ -257,11 +262,11 @@ class ccp_volume(object):
         print('RFs used', self.VOL['count'])
 
         # Write out at the end of list
-        outfilename='../CCP_volumes/'+name+'_'+rffilter+'_'+conversion+'_'+str(factor)+'/Stack_'+str(int(runnum+1))+'.PICKLE'
+        outfilename=Results+'/CCP_volumes/'+name+'_'+noisefilter+rffilter+'_'+conversion+'_'+str(factor)+'/Stack_'+str(int(runnum+1))+'.PICKLE'
         with open(outfilename,'wb') as handle:
                     msgpack.pack(self.VOL,handle,use_bin_type=True)
                     handle.close()
-        with open('../CCP_volumes/'+name+'_'+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat','a') as handle:
+        with open(Results+'/CCP_volumes/'+name+'_'+noisefilter+filter+'_'+conversion+'_'+str(factor)+'/filenames.dat','a') as handle:
             handle.write('%d %s \n'% (runnum+1, outfilename))
             handle.close()
         rffile.close()

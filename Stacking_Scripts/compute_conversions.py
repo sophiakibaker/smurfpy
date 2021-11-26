@@ -5,12 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 
-def compute_arrivals(conversion='prem'):
+pathtotools = '/Users/r03sb21/Documents/smurfpy/Tools/'
+
+def compute_arrivals(conversion):
 
     if conversion=='prem':
-        taupmodel = obspy.taup.taup_create.TauPCreate('../Tools/MODELS/PREM_FILES/prem.nd', output_filename='onediscon')
+        taupmodel = obspy.taup.taup_create.TauPCreate(pathtotools + 'MODELS/PREM_FILES/prem.nd', output_filename='onediscon')
     elif conversion=='ak135':
-        taupmodel = obspy.taup.taup_create.TauPCreate('../Tools/MODELS/ak135_FILES/ak135_added_discon_taup.tvel', output_filename='onediscon')
+        taupmodel = obspy.taup.taup_create.TauPCreate(pathtotools + 'MODELS/ak135_FILES/ak135_added_discon_taup.tvel', output_filename='onediscon')
     
     vmodel= taupmodel.load_velocity_model()
     # introduce very minor disconinuities throughout the model 
@@ -23,7 +25,7 @@ def compute_arrivals(conversion='prem'):
     taupmodel.run()
 
     # Start model in format to compute travel times from
-    taupmodel =TauPyModel(model='./alldiscon.npz')
+    taupmodel =TauPyModel(model='/Users/r03sb21/Documents/smurfpy/Stacking_Scripts/alldiscon')#./alldiscon')
     # Compute reference phase
     ref =  taupmodel.get_travel_times(10,60,['P'])
 
@@ -80,11 +82,11 @@ def compute_arrivals(conversion='prem'):
 def compute_arrivals_one_depth(depth,conversion='prem'):
 
     if conversion=='prem':
-        taupmodel = obspy.taup.taup_create.TauPCreate('../Tools/MODELS/PREM_FILES/prem.nd', output_filename='onediscon')
+        taupmodel = obspy.taup.taup_create.TauPCreate(pathtotools + 'MODELS/PREM_FILES/prem.nd', output_filename='onediscon')
         vmodel= taupmodel.load_velocity_model()
         
     elif conversion=='ak135':
-        taupmodel = obspy.taup.taup_create.TauPCreate('../Tools/MODELS/ak135_FILES/ak135_added_discon_taup.tvel', output_filename='onediscon')
+        taupmodel = obspy.taup.taup_create.TauPCreate(pathtotools + 'MODELS/ak135_FILES/ak135_added_discon_taup.tvel', output_filename='onediscon')
         vmodel= taupmodel.load_velocity_model()
 
 

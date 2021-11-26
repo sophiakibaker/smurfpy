@@ -13,12 +13,14 @@ README last updated by: S. Baker, 26/11/21
 
 **AUTOMATED RUNNING OF:**
 
-    1:
+-----------------------------------------------------------------------
+• 1:
 
 1. Processing_Scripts
     --> Data download, pre-processing, RF calculation, post-processing (inc. quality control)
     
-    2:
+-----------------------------------------------------------------------
+• 2:
     
 2. Migration_Scripts
     --> Calculate RF pierce points, 1D & 3D time-to-depth conversion
@@ -27,7 +29,7 @@ README last updated by: S. Baker, 26/11/21
 4. Plotting_Scripts
     --> Plot Pierce points, CCP stack volumes (weights, Maps, XC etc)
     
-    
+-----------------------------------------------------------------------    
 **REQUIRES:**
 
 5. Tools
@@ -65,19 +67,19 @@ Earlier papers using SMURFPy are:
 ------------------------------------------------------------------------------
 
 **# 1_receiver_function_generation.py**
-Description:           Run smurfpy for every filter; options to download data from IRIS or import own data files
-Inputs:                data directory, lonmin, lonmax, latmin, latmax, binsize, smoothing, min_epi, max_epi, dates, datef
-Outputs:               epicentral distance, depth and slowness stacks; piercing point plots for P410s and P660s
+•Description:           Run smurfpy for every filter etc; options to download data from IRIS or import own data files
+•Inputs:                data directory, lonmin, lonmax, latmin, latmax, binsize, smoothing, min_epi, max_epi, dates, datef
+•Outputs:               epicentral distance, depth and slowness stacks; piercing point plots for P410s and P660s
                        CCP stacks; for filters jgf1,2,3 and tff1,2,3,4,5\n
-Usage:                 export PATH="/PATH/TO/TauP-2.5.0/bin:$PATH"
+•Usage:                 export PATH="/PATH/TO/TauP-2.5.0/bin:$PATH"
                        python3 1_receiver_function_generation.py MetMalaysia 110 122 0 12 /PATH/TO/RAW/DATA /PATH/TO/STATION/LIST 30 90 2018-01-01 2019-01-01
                        
 **# 2_stacking_and_plotting.py**
-Description:           Run smurfpy for every filter')
-Inputs:                data directory, lonmin, lonmax, latmin, latmax, binsize, smoothing, min_epi, max_epi, dates, datef
-Outputs:               epicentral distance, depth and slowness stacks; piercing point plots for P410s and P660s;
+•Description:           Run smurfpy for every filter etc
+•Inputs:                data directory, lonmin, lonmax, latmin, latmax, binsize, smoothing, min_epi, max_epi, dates, datef
+•Outputs:               epicentral distance, depth and slowness stacks; piercing point plots for P410s and P660s;
                        CCP stacks; for filters jgf1,2,3 and tff1,2,3,4,5\n
-Usage:                 export PATH="/PATH/TO/TauP-2.5.0/bin:$PATH"
+•Usage:                 export PATH="/PATH/TO/TauP-2.5.0/bin:$PATH"
                        python3 2_stacking_and_plotting.py MetMalaysia 110 122 0 12 3 True 30 90 2018-01-01 2019-01-01
 
 -------------------------------------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 
 # smurfpy
-seismological methods utilizing receiver functions in python3
+seismological methods utilizing receiver functions in python3 (Sophia's Version)
 
 Contributors: Sanne Cottaar, Jennifer Jenkins, Stephen Pugh, Alistair Boyce, Matthew Kemp, Annemijn van Stiphout, Simon Thomas, Kieran Gilmore, Matt Harding, and others
 
@@ -26,6 +26,7 @@ README last updated by: S. Baker, 26/11/21
 6. South_Africa_Data
     --> Test dataset from XA network in Southern Africa
     
+    
 -----------------------------------------------------------------------
 ----------------------------- HELP ------------------------------------
 -----------------------------------------------------------------------
@@ -49,9 +50,9 @@ Earlier papers using SMURFPy are:
 • Van Stiphout., A.M., Cottaar, S. and Deuss, A., 2019. Receiver function mapping of mantle transition zone discontinuities beneath Alaska using scaled 3-D velocity corrections. Geophysical Journal International, 219(2), pp.1432-1446.  
 • Cottaar, S. and Deuss, A., 2016, Large-scale mantle discontinuity topography beneath Europe: signature of akimotoite in subducting slabs, Journal of Geophysical Research, 121, 279-292  
 
----------------------------------------------------------------------------------
---------------------------- Processing SCRIPTS ----------------------------------
----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+--------------------------- Processing SCRIPTS (old descriptions) ---------------------------------
+---------------------------------------------------------------------------------------------------
 
 # 1_download_data_per_station.py  
 • Description: select and download appropriate events and stations based on user inputs  

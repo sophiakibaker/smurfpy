@@ -35,7 +35,7 @@ README last updated by: S. Baker, 26/11/21
 5. Tools
     --> Misc tools (inc velocity models)
     
-***THESE SCRIPTS REQUIRE MATPLOTLIB 3.2, NUMPY 1.17***
+***THESE SCRIPTS REQUIRE MATPLOTLIB 3.2, NUMPY 1.17 - this fork has not been updated to cope with newer versions. ***
     
     
 -----------------------------------------------------------------------

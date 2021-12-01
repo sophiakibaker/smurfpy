@@ -153,12 +153,8 @@ def plot_data_perstation(Data, noisefilter, Model, Filt):
                     plt.legend(title=stadir, loc='best', bbox_to_anchor=(0, -0.59, 0.5, 0.5), frameon=False)
                             #plt.xlim([-150,1000])  
                     
+                    if os.path.exists(str(noisefilter)+'RFs/'+str(filt))==False:
+                        os.makedirs(str(noisefilter)+'RFs/'+str(filt))
+
                     plt.savefig(str(noisefilter)+'RFs/'+str(filt)+'/'+str(sta)+'_'+Filt+Model+".png")
 #                   print(str(noisefilter)+'RFs/'+str(stadir)+'_'+Filt+Model+".png")
-
-
-
-
-
-
-

@@ -13,10 +13,17 @@ def rfsperstation(Data, noisefilter, filt):
     rfcount =[]
     noevents =[]
 
+    Results = Data+'_Results'
+
     for station in stations:
-        sta = station.replace(Data+'/MY.','')
+        sta = station.replace(Data+'/','')
+        sta = sta.replace('MetMalaysia/','')
+        sta = sta.replace('nBOSS/','')
         stalist.append(sta)
 
+    stalist = sorted(stalist)
+
+    for station in stations:
         file = station + '/selected_RFs_'+noisefilter+filt+'.dat'
         
         
@@ -31,13 +38,19 @@ def rfsperstation(Data, noisefilter, filt):
 
         noevents.append(len(events))
 
-    plt.figure(figsize=(12,4))
-    plt.bar(np.arange(len(stalist)),rfcount, tick_label=stalist, color='mediumvioletred',alpha=.4, edgecolor='mediumvioletred', label='RFs used')
-    plt.bar(np.arange(len(stalist)),noevents, tick_label=stalist, color='coral',alpha=.4, edgecolor='coral', label='Events')
+    ax = plt.gca()
+
+    # ax.figure(figsize=(16,4))
+    ax.bar(np.arange(len(stalist))*4,rfcount, tick_label=stalist, color='mediumvioletred',alpha=.4, edgecolor='mediumvioletred', label='RFs used', width=2.5)
+    ax.bar(np.arange(len(stalist))*4,noevents, tick_label=stalist, color='coral',alpha=.4, edgecolor='coral', label='Events', width = 2.5)
     # plt.yticks(np.arange(0,121, 10))
-    plt.ylabel('Frequency')
+    ax.set_ylabel('Frequency')
+    ax.set_ylim((0,max(noevents)+20))
+    ax.set_xticklabels(labels=stalist, rotation = 90)
+    
+    plt.tight_layout()
 
-    plt.legend(frameon=False)
+    ax.legend(frameon=False)
 
-    plt.savefig('selected_RFs_'+noisefilter+filt+'_per_station.png')
-    plt.savefig('selected_RFs_'+noisefilter+filt+'_per_station.pdf')
+    plt.savefig(Results+'/selected_RFs_'+noisefilter+filt+'_per_station.png')
+    plt.savefig(Results+'/selected_RFs_'+noisefilter+filt+'_per_station.pdf')

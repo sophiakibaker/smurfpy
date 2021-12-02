@@ -255,7 +255,7 @@ def epicentral_distance_stack(Data, noise, bin_size, smoothing, depth, lonmin, l
 
             # Plotting command (x axis, y axis, matrix of values, colourmap, min and
             # max values)
-            plt.pcolor(epi_range, time, STACK_NEW, cmap='seismic', vmin=-1, vmax=1)
+            plt.pcolor(time, epi_range, STACK_NEW, cmap='seismic', vmin=-1, vmax=1)
 
         # No smoothing process
         else:
@@ -264,7 +264,7 @@ def epicentral_distance_stack(Data, noise, bin_size, smoothing, depth, lonmin, l
                     STACK[:, m] = STACK[:, m]/counter[m]
                     STACK[:, m] = STACK[:, m]/(np.nanmax(np.abs(STACK[:, m])))     
             STACK[:,:] = STACK[:,:]/NORMALIZATION  
-            plt.pcolor(epi_range, time, STACK, cmap='seismic', vmin=-1, vmax=1)
+            plt.pcolor(time, epi_range, STACK, cmap='seismic', vmin=-1, vmax=1)
             
         # Axes labels
         plt.ylabel('Time (s)', fontsize=24)

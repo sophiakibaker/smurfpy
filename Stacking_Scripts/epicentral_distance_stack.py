@@ -94,10 +94,10 @@ def epicentral_distance_stack(Data, noise, bin_size, smoothing, depth, lonmin, l
     epi_range = np.linspace(min_epi, max_epi, epi_steps)
 
     # Set up stack ( matrix [len of RF x no of bins ])
-    STACK = np.zeros([1751, epi_steps-1])
+    STACK = np.zeros([1751, epi_steps])
 
     # Set up counter to see how many RFs are added to each bin
-    counter = np.zeros([epi_steps-1])
+    counter = np.zeros([epi_steps])
 
     savepath=Results+'/Epicentral_Distance_Stack/'
     if not os.path.exists(savepath):
@@ -226,8 +226,8 @@ def epicentral_distance_stack(Data, noise, bin_size, smoothing, depth, lonmin, l
         if smoothing:
 
             # Create new stack and counter
-            STACK_NEW = np.zeros([1751, epi_steps-1])
-            counter_new = np.zeros([epi_steps-1])
+            STACK_NEW = np.zeros([1751, epi_steps])
+            counter_new = np.zeros([epi_steps])
 
             # Loop through the stack and counter, careful of the ends of the arrays
             for p in range(len(counter)):
@@ -255,7 +255,7 @@ def epicentral_distance_stack(Data, noise, bin_size, smoothing, depth, lonmin, l
 
             # Plotting command (x axis, y axis, matrix of values, colourmap, min and
             # max values)
-            plt.pcolor(time, epi_range, STACK_NEW, cmap='seismic', vmin=-1, vmax=1)
+            plt.pcolor(epi_range, time, STACK_NEW, cmap='seismic', vmin=-1, vmax=1)
 
         # No smoothing process
         else:
@@ -264,7 +264,7 @@ def epicentral_distance_stack(Data, noise, bin_size, smoothing, depth, lonmin, l
                     STACK[:, m] = STACK[:, m]/counter[m]
                     STACK[:, m] = STACK[:, m]/(np.nanmax(np.abs(STACK[:, m])))     
             STACK[:,:] = STACK[:,:]/NORMALIZATION  
-            plt.pcolor(time, epi_range, STACK, cmap='seismic', vmin=-1, vmax=1)
+            plt.pcolor(epi_range, time, STACK, cmap='seismic', vmin=-1, vmax=1)
             
         # Axes labels
         plt.ylabel('Time (s)', fontsize=24)

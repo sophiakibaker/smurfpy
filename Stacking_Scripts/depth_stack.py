@@ -96,11 +96,25 @@ def depth_stack(Data, noise, conv, lonmin, lonmax, latmin, latmax, rffilter):
     stalist = []
     for direc in direcs:
         # print(direc)
-        if os.path.isfile(direc + '/selected_RFs_' + noise+ filt + '.dat'):
-            with open(direc + '/selected_RFs_' + noise+ filt + '.dat') as a:
+        file = direc + '/selected_RFs_' + noise + filt + '.dat'
+        if os.path.isfile(file) and os.path.getsize(file):
+            with open(file) as a:
                 starfs = a.read().splitlines()
-                for line in starfs:
-                    stalist.append(line)
+                if Data == 'MM_YC':
+                    for line in starfs:
+                        name = str(line)
+                        name = name.replace('nBOSS/YC.','MM_YC/YC.')
+                        name = name.replace('MetMalaysia/MY.','MM_YC/MY.')
+                        # print(name)
+                        stalist.append(name)
+                elif Data == 'nBOSS':
+                    for line in starfs:
+                        if 'nBOSS/YC.' in line:
+                            stalist.append(line)
+                elif Data == 'MetMalaysia':
+                    for line in starfs:
+                        if 'MetMalaysia/MY.' in line:
+                            stalist.append(line)
 
     #Set up checking counts and event lists
     count_yes = 0
